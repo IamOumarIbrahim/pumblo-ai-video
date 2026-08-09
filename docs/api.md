@@ -35,6 +35,10 @@ Pumblo's browser client uses same-origin routes. The open beta does not expose A
 
 The request body is the final MP4/WebM. URL-encoded JSON in `X-Pumblo-Metadata` carries title, description, generation tool/mode, category, license, optional prompt/process notes, optional series/episode/source credit, disclosure acknowledgement, byte length, browser-read duration, and local-optimizer source size.
 
+Generation-tool attribution is optional. A blank value is stored as `Not specified`; the upload form also suggests current tools while accepting any custom pipeline.
+
+Comment creation accepts optional `parentId` JSON. The server verifies that the parent belongs to the same video, keeps replies one level deep, and notifies the creator and replied-to commenter without duplicating the same notification.
+
 The route:
 
 1. caps the metadata header at 12 KB;

@@ -39,6 +39,7 @@ Pumblo turns scattered renders into channels, series, and audiences by giving ev
 
 - [What is Pumblo?](#-what-is-pumblo)
 - [Key Features](#-key-features)
+- [Feedback Roadmap](ROADMAP.md)
 - [Story Tier](#-story-tier)
 - [System Architecture](#️-system-architecture)
 - [Setup & Installation](#-setup--installation)
@@ -88,6 +89,7 @@ Instead of optimizing only for disconnected clips, Pumblo supports three viewing
 - ️ **Settings**: playback/performance, data saver, reduced motion, content preferences, notifications, public-profile privacy, and a JSON account export.
 -  **Queryable public web**: search APIs, canonical video/profile/series URLs, `VideoObject` structured data, XML sitemap, robots rules, manifest, and share metadata.
 -  **Guest-first access**: viewing requires no account. Sign in with ChatGPT appears only when someone tries to publish or interact.
+-  **Threaded conversation**: viewers can reply to comments, and creators can keep community requests visible in the public [feedback roadmap](ROADMAP.md).
 
 ---
 

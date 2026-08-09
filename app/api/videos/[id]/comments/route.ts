@@ -35,13 +35,25 @@ export async function POST(
     return Response.json({ error: "Video not found." }, { status: 404 });
   }
 
-  const body = (await request.json()) as { content?: unknown };
+  const body = (await request.json()) as {
+    content?: unknown;
+    parentId?: unknown;
+  };
   const content =
     typeof body.content === "string" ? body.content.trim().slice(0, 500) : "";
   if (!content) {
     return Response.json({ error: "Write a comment first." }, { status: 400 });
   }
 
-  const comment = await addComment(id, user.email, content);
-  return Response.json({ comment }, { status: 201 });
+  const parentId =
+    typeof body.parentId === "string" ? body.parentId.slice(0, 64) : null;
+  try {
+    const comment = await addComment(id, user.email, content, parentId);
+    return Response.json({ comment }, { status: 201 });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Reply could not be posted." },
+      { status: 400 },
+    );
+  }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Comment } from "@/db";
 import { relativeTime } from "@/app/lib/format";
 import { Avatar } from "./Avatar";
@@ -30,9 +30,11 @@ export function Engagement({
   const [saved, setSaved] = useState(initialSaved);
   const [comments, setComments] = useState(initialComments);
   const [content, setContent] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [shareLabel, setShareLabel] = useState("Share");
+  const commentInput = useRef<HTMLTextAreaElement>(null);
 
   const actionPath = !signedIn
     ? signInPath
@@ -110,7 +112,7 @@ export function Engagement({
     const response = await fetch(`/api/videos/${videoId}/comments`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, parentId: replyTo?.id ?? null }),
     });
     const payload = (await response.json()) as {
       comment?: Comment;
@@ -121,9 +123,24 @@ export function Engagement({
     } else {
       setComments((current) => [payload.comment!, ...current]);
       setContent("");
+      setReplyTo(null);
     }
     setBusy(false);
   }
+
+  function beginReply(comment: Comment) {
+    if (actionPath) {
+      window.location.href = actionPath;
+      return;
+    }
+    setReplyTo({
+      id: comment.id,
+      name: comment.authorDisplayName,
+    });
+    window.setTimeout(() => commentInput.current?.focus(), 0);
+  }
+
+  const rootComments = comments.filter((comment) => !comment.parentId);
 
   return (
     <section className="engagement">
@@ -156,7 +173,14 @@ export function Engagement({
         </div>
 
         <form className="comment-form" onSubmit={addComment}>
+          {replyTo ? (
+            <div className="replying-to">
+              <span>Replying to <strong>{replyTo.name}</strong></span>
+              <button type="button" onClick={() => setReplyTo(null)}>Cancel</button>
+            </div>
+          ) : null}
           <textarea
+            ref={commentInput}
             value={content}
             onChange={(event) => setContent(event.target.value)}
             maxLength={500}
@@ -177,7 +201,9 @@ export function Engagement({
                   : "Create profile to comment"
                 : busy
                   ? "Posting…"
-                  : "Post comment"}
+                  : replyTo
+                    ? "Post reply"
+                    : "Post comment"}
             </button>
           </div>
         </form>
@@ -185,29 +211,29 @@ export function Engagement({
         {error ? <p className="form-error">{error}</p> : null}
 
         <div className="comment-list">
-          {comments.length ? (
-            comments.map((comment) => (
-              <article className="comment" key={comment.id}>
-                <Link href={`/profile/${comment.authorHandle}`}>
-                  <Avatar
-                    name={comment.authorDisplayName}
-                    color={comment.authorAvatarColor}
-                    src={comment.authorAvatarUrl || undefined}
-                    size="md"
-                  />
-                </Link>
-                <div>
-                  <p className="comment-byline">
-                    <Link href={`/profile/${comment.authorHandle}`}>
-                      {comment.authorDisplayName}
-                    </Link>
-                    <span>@{comment.authorHandle}</span>
-                    <span>{relativeTime(comment.createdAt)}</span>
-                  </p>
-                  <p>{comment.content}</p>
+          {rootComments.length ? (
+            rootComments.map((comment) => {
+              const replies = comments
+                .filter((item) => item.parentId === comment.id)
+                .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+              return (
+                <div className="comment-thread" key={comment.id}>
+                  <CommentItem comment={comment} onReply={beginReply} />
+                  {replies.length ? (
+                    <div className="comment-replies" aria-label={`Replies to ${comment.authorDisplayName}`}>
+                      {replies.map((reply) => (
+                        <CommentItem
+                          comment={reply}
+                          key={reply.id}
+                          onReply={beginReply}
+                          reply
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              </article>
-            ))
+              );
+            })
           ) : (
             <p className="no-comments">
               No comments yet. Start with what stayed with you.
@@ -216,5 +242,41 @@ export function Engagement({
         </div>
       </div>
     </section>
+  );
+}
+
+function CommentItem({
+  comment,
+  onReply,
+  reply = false,
+}: {
+  comment: Comment;
+  onReply: (comment: Comment) => void;
+  reply?: boolean;
+}) {
+  return (
+    <article className={reply ? "comment is-reply" : "comment"}>
+      <Link href={`/profile/${comment.authorHandle}`}>
+        <Avatar
+          name={comment.authorDisplayName}
+          color={comment.authorAvatarColor}
+          src={comment.authorAvatarUrl || undefined}
+          size="md"
+        />
+      </Link>
+      <div>
+        <p className="comment-byline">
+          <Link href={`/profile/${comment.authorHandle}`}>
+            {comment.authorDisplayName}
+          </Link>
+          <span>@{comment.authorHandle}</span>
+          <span>{relativeTime(comment.createdAt)}</span>
+        </p>
+        <p className="comment-content">{comment.content}</p>
+        <button className="comment-reply-button" type="button" onClick={() => onReply(comment)}>
+          Reply
+        </button>
+      </div>
+    </article>
   );
 }

@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "./Avatar";
 
-type NavItem = { href: string; label: string; glyph: string; exact?: boolean };
+type NavItem = { href: string; label: string; exact?: boolean };
 
 const discover: NavItem[] = [
-  { href: "/", label: "Home", glyph: "⌂", exact: true },
-  { href: "/quicks", label: "Quicks", glyph: "ϟ" },
-  { href: "/following", label: "Following", glyph: "◎" },
+  { href: "/", label: "Home", exact: true },
+  { href: "/quicks", label: "Quicks" },
+  { href: "/following", label: "Following" },
 ];
 
 export function SidebarNav({
@@ -33,24 +33,22 @@ export function SidebarNav({
     {
       href: profile ? `/profile/${profile.handle}` : "/settings/profile",
       label: profile ? "Your channel" : "Create channel",
-      glyph: "◉",
     },
-    { href: "/library", label: "Library", glyph: "▤" },
+    { href: "/library", label: "Library" },
     {
       href: "/notifications",
       label: unreadNotifications ? `Notifications (${unreadNotifications})` : "Notifications",
-      glyph: "●",
     },
-    { href: "/studio", label: "Creator studio", glyph: "▦", exact: true },
-    { href: "/studio/series", label: "Series", glyph: "≡" },
-    { href: "/upload", label: "Upload video", glyph: "＋" },
+    { href: "/studio", label: "Creator studio", exact: true },
+    { href: "/studio/series", label: "Series" },
+    { href: "/upload", label: "Upload video" },
     ...(profile
-      ? [{ href: "/settings/profile", label: "Edit profile", glyph: "✎" }]
+      ? [{ href: "/settings/profile", label: "Edit profile" }]
       : []),
     ...(profile
-      ? [{ href: "/settings", label: "Settings", glyph: "⚙" }]
+      ? [{ href: "/settings", label: "Settings" }]
       : []),
-    { href: "/about", label: "About Pumblo", glyph: "i" },
+    { href: "/about", label: "About Pumblo" },
   ];
 
   return (
@@ -101,7 +99,6 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
   const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
   return (
     <Link className={active ? "side-nav-link active" : "side-nav-link"} href={item.href} aria-current={active ? "page" : undefined}>
-      <span className="side-nav-glyph" aria-hidden="true">{item.glyph}</span>
       <span className="side-nav-text">{item.label}</span>
     </Link>
   );

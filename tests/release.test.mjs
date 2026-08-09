@@ -224,11 +224,11 @@ test("the main product is an AI-only video network", async () => {
   assert.doesNotMatch(home, /Give the clip a home/);
 });
 
-test("behind-the-render context remains a secondary feature", async () => {
+test("removed marketing explainers stay off the home page", async () => {
   const home = await text("app/page.tsx");
   const watch = await text("app/watch/[id]/page.tsx");
-  assert.match(home, /Go behind the render/);
-  assert.match(home, /It supports the video;[\s\S]*does not replace it/);
+  assert.doesNotMatch(home, /value-section|how-section/);
+  assert.doesNotMatch(home, /Watch first\. Go deeper|A familiar video loop/);
   assert.match(watch, /Optional creator feature/);
   assert.match(watch, /Behind the render/);
 });
@@ -239,8 +239,31 @@ test("profile and upload setup remove avoidable friction", async () => {
   assert.match(profile, /suggestedHandle\(suggestedName\)/);
   assert.equal((profile.match(/\brequired\b/g) ?? []).length, 2);
   assert.match(upload, /<input[\s\S]*name="generationTool"[\s\S]*list="generation-tools"/);
+  assert.match(upload, /Seedance 2\.0/);
+  assert.match(upload, /Generation tool <i>optional<\/i>/);
   assert.match(upload, /value="hybrid-workflow"/);
   assert.doesNotMatch(upload, /<select name="generationTool"/);
+});
+
+test("comments support one-level reply threads", async () => {
+  const schema = await text("db/schema.ts");
+  const database = await text("db/index.ts");
+  const engagement = await text("app/components/Engagement.tsx");
+  const route = await text("app/api/videos/[id]/comments/route.ts");
+  assert.match(schema, /parentId: text\("parent_id"\)/);
+  assert.match(database, /comments_parent_idx/);
+  assert.match(database, /queueReplyNotification/);
+  assert.match(engagement, /comment-replies/);
+  assert.match(engagement, /comment-reply-button[\s\S]*Reply/);
+  assert.match(route, /parentId/);
+});
+
+test("navigation is text-only and the default type scale is 110 percent", async () => {
+  const navigation = await text("app/components/SidebarNav.tsx");
+  const styles = await text("app/globals.css");
+  assert.doesNotMatch(navigation, /glyph/);
+  assert.doesNotMatch(styles, /side-nav-glyph/);
+  assert.match(styles, /font-size: 110%/);
 });
 
 test("following is persisted, protected, and queryable", async () => {

@@ -103,7 +103,7 @@ export type WatchProgress = {
 
 export type Notification = {
   id: string;
-  type: "like" | "comment" | "follow" | "series";
+  type: "like" | "comment" | "reply" | "follow" | "series";
   videoId: string;
   seriesId: string;
   read: boolean;
@@ -117,6 +117,7 @@ export type Notification = {
 export type Comment = {
   id: string;
   videoId: string;
+  parentId: string | null;
   content: string;
   createdAt: string;
   authorHandle: string;
@@ -289,6 +290,7 @@ async function initializeSchema(): Promise<void> {
         id TEXT PRIMARY KEY,
         video_id TEXT NOT NULL,
         author_email TEXT NOT NULL,
+        parent_id TEXT,
         content TEXT NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY (video_id) REFERENCES videos(id),
@@ -377,6 +379,17 @@ async function initializeSchema(): Promise<void> {
   await db
     .prepare(
       "CREATE UNIQUE INDEX IF NOT EXISTS videos_owner_content_hash_unique ON videos(owner_email, content_hash) WHERE content_hash <> ''",
+    )
+    .run();
+  const commentColumns = await db
+    .prepare("PRAGMA table_info(comments)")
+    .all<{ name: string }>();
+  if (!commentColumns.results.some((column) => column.name === "parent_id")) {
+    await addColumn(db, "ALTER TABLE comments ADD COLUMN parent_id TEXT");
+  }
+  await db
+    .prepare(
+      "CREATE INDEX IF NOT EXISTS comments_parent_idx ON comments(parent_id, created_at)",
     )
     .run();
 }
@@ -1081,6 +1094,7 @@ export async function listComments(videoId: string): Promise<Comment[]> {
       `SELECT
         c.id,
         c.video_id AS videoId,
+        c.parent_id AS parentId,
         c.content,
         c.created_at AS createdAt,
         p.handle AS authorHandle,
@@ -1106,23 +1120,42 @@ export async function addComment(
   videoId: string,
   authorEmail: string,
   content: string,
+  requestedParentId: string | null = null,
 ): Promise<Comment> {
   await ensureSchema();
+  const db = bindings().DB;
+  const parent = requestedParentId
+    ? await db
+        .prepare(
+          `SELECT id, parent_id AS parentId, author_email AS authorEmail
+           FROM comments WHERE id = ?1 AND video_id = ?2`,
+        )
+        .bind(requestedParentId, videoId)
+        .first<{ id: string; parentId: string | null; authorEmail: string }>()
+    : null;
+  if (requestedParentId && !parent) {
+    throw new Error("The comment you are replying to is no longer available.");
+  }
+  const parentId = parent?.parentId ?? parent?.id ?? null;
   const id = crypto.randomUUID();
-  await bindings()
-    .DB.prepare(
-      `INSERT INTO comments (id, video_id, author_email, content, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5)`,
+  await db
+    .prepare(
+      `INSERT INTO comments (id, video_id, author_email, parent_id, content, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
     )
     .bind(
       id,
       videoId,
       authorEmail.toLowerCase(),
+      parentId,
       content,
       new Date().toISOString(),
     )
     .run();
   await queueNotification("comment", videoId, authorEmail);
+  if (parent && parent.authorEmail !== authorEmail.toLowerCase()) {
+    await queueReplyNotification(parent.authorEmail, videoId, authorEmail);
+  }
   const comments = await listComments(videoId);
   return comments.find((comment) => comment.id === id)!;
 }
@@ -1458,7 +1491,7 @@ export async function getAccountExport(email: string) {
       listSeries({ ownerEmail: normalized, limit: 100 }),
       listVideos({ ownerEmail: normalized, sort: "newest", limit: 100 }),
       db.prepare("SELECT video_id AS videoId, created_at AS createdAt FROM likes WHERE user_email = ?1").bind(normalized).all(),
-      db.prepare("SELECT id, video_id AS videoId, content, created_at AS createdAt FROM comments WHERE author_email = ?1 ORDER BY created_at DESC").bind(normalized).all(),
+      db.prepare("SELECT id, video_id AS videoId, parent_id AS parentId, content, created_at AS createdAt FROM comments WHERE author_email = ?1 ORDER BY created_at DESC").bind(normalized).all(),
       db.prepare("SELECT p.handle AS creatorHandle, p.display_name AS creatorDisplayName, f.created_at AS createdAt FROM follows f JOIN profiles p ON p.email = f.creator_email WHERE f.follower_email = ?1").bind(normalized).all(),
       db.prepare("SELECT video_id AS videoId, created_at AS createdAt FROM watch_later WHERE user_email = ?1").bind(normalized).all(),
       db.prepare("SELECT video_id AS videoId, progress_seconds AS progressSeconds, completed, updated_at AS updatedAt FROM watch_progress WHERE user_email = ?1").bind(normalized).all(),
@@ -1506,6 +1539,20 @@ async function queueFollowNotification(
 ): Promise<void> {
   if (!(await notificationEnabled(creatorEmail, "follow"))) return;
   await insertNotification(creatorEmail, followerEmail, "follow", "", "");
+}
+
+async function queueReplyNotification(
+  recipientEmail: string,
+  videoId: string,
+  actorEmail: string,
+): Promise<void> {
+  const video = await bindings()
+    .DB.prepare("SELECT owner_email AS ownerEmail FROM videos WHERE id = ?1")
+    .bind(videoId)
+    .first<{ ownerEmail: string }>();
+  if (video?.ownerEmail === recipientEmail.toLowerCase()) return;
+  if (!(await notificationEnabled(recipientEmail, "comment"))) return;
+  await insertNotification(recipientEmail, actorEmail, "reply", videoId, "");
 }
 
 async function notifySeriesFollowers(

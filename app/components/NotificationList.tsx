@@ -37,6 +37,7 @@ export function NotificationList({ notifications }: { notifications: Notificatio
 function message(type: Notification["type"]): string {
   if (type === "like") return "liked your video.";
   if (type === "comment") return "commented on your video.";
+  if (type === "reply") return "replied to your comment.";
   if (type === "follow") return "followed your channel.";
   return "published a new series episode.";
 }

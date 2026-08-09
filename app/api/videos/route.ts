@@ -118,7 +118,7 @@ export async function POST(request: Request) {
 
     const title = text(metadata.title, 100);
     const description = text(metadata.description, 1000);
-    const generationTool = text(metadata.generationTool, 50);
+    const generationTool = text(metadata.generationTool, 50) || "Not specified";
     const generationMode = text(metadata.generationMode, 30);
     const category = text(metadata.category, 30);
     const license = text(metadata.license, 40);
@@ -139,9 +139,9 @@ export async function POST(request: Request) {
         ? metadata.durationSeconds
         : Number.NaN;
 
-    if (title.length < 2 || !generationTool) {
+    if (title.length < 2) {
       return Response.json(
-        { error: "Title and generation tool are required." },
+        { error: "Enter a title with at least 2 characters." },
         { status: 400 },
       );
     }

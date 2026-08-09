@@ -43,6 +43,13 @@
       "when": 1785496328125,
       "tag": "0005_lucky_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1786265286888,
+      "tag": "0006_fluffy_khan",
+      "breakpoints": true
     }
   ]
 }

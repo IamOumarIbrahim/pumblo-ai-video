@@ -221,11 +221,13 @@ export const comments = sqliteTable(
     authorEmail: text("author_email")
       .notNull()
       .references(() => profiles.email),
+    parentId: text("parent_id"),
     content: text("content").notNull(),
     createdAt: text("created_at").notNull(),
   },
   (table) => [
     index("comments_video_idx").on(table.videoId, table.createdAt),
+    index("comments_parent_idx").on(table.parentId, table.createdAt),
   ],
 );
 

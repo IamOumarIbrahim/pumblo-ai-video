@@ -304,23 +304,34 @@ export function UploadForm({
         </label>
 
         <label>
-          <span>Generation tool</span>
+          <span>Generation tool <i>optional</i></span>
           <input
-            required
             name="generationTool"
             maxLength={50}
             list="generation-tools"
-            placeholder="Runway, Veo, Kling, ComfyUI…"
+            placeholder="Seedance, Runway, Veo, Kling…"
           />
           <datalist id="generation-tools">
+            <option value="Seedance 2.0" />
+            <option value="Sora" />
             <option value="Runway" />
             <option value="Veo" />
             <option value="Kling" />
             <option value="Pika" />
             <option value="Luma" />
+            <option value="Adobe Firefly" />
+            <option value="Hailuo" />
+            <option value="Higgsfield" />
+            <option value="PixVerse" />
+            <option value="Wan" />
+            <option value="Stable Video Diffusion" />
+            <option value="Mochi" />
+            <option value="Kaiber" />
+            <option value="Krea" />
+            <option value="Leonardo" />
             <option value="ComfyUI" />
           </datalist>
-          <small>Type any model, tool, or custom pipeline.</small>
+          <small>Choose a suggestion, type any custom pipeline, or leave this blank.</small>
         </label>
         <label>
           <span>Generation mode</span>
