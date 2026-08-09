@@ -34,61 +34,6 @@ export default async function Home({
 
   return (
     <main>
-      <section className="hero">
-        <div className="hero-grid">
-          <div className="eyebrow">
-            <span className="live-dot" />
-            AI video / open beta
-          </div>
-          <h1>
-            Watch what AI can imagine.
-            <br />
-            <em>Nothing else.</em>
-          </h1>
-          <p className="hero-copy">
-            Pumblo is an AI-only video-sharing network and the creator-owned home
-            after the render: connected stories, transparent limits, and public
-            work that is not trapped inside one generation tool.
-          </p>
-          <div className="hero-actions">
-            <a className="button button-primary button-large" href="#feed">
-              Explore videos <span aria-hidden="true">↓</span>
-            </a>
-            <Link className="button button-ghost button-large" href="/upload">
-              Upload video <span aria-hidden="true">↗</span>
-            </Link>
-            <Link className="button button-ghost button-large" href="/quicks">
-              Watch Quicks <span aria-hidden="true">ϟ</span>
-            </Link>
-          </div>
-          <p className="hero-note">
-            Free to watch · creator channels · likes, comments, and follows
-          </p>
-        </div>
-        <aside className="hero-manifesto">
-          <span className="manifesto-index">THE FEED HAS ONE RULE</span>
-          <p>
-            AI must materially shape every video. Creators keep the public link,
-            credit their sources, and build an audience across tools—not for one vendor.
-          </p>
-          <div className="manifesto-rule" />
-          <div className="manifesto-stats">
-            <span>
-              <strong>100</strong>
-              creator launch
-            </span>
-            <span>
-              <strong>40 MB</strong>
-              per video
-            </span>
-            <span>
-              <strong>AGPL</strong>
-              open source
-            </span>
-          </div>
-        </aside>
-      </section>
-
       <section className="discovery" id="feed">
         <div className="section-heading">
           <div>

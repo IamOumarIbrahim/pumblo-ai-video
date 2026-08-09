@@ -215,12 +215,11 @@ test("the storage optimizer is local, conservative, optional, and server-checked
 
 test("the main product is an AI-only video network", async () => {
   const home = await text("app/page.tsx");
-  assert.match(home, /AI-only video-sharing network/);
-  assert.match(home, /Watch what AI can imagine/);
-  assert.match(home, /Explore videos/);
+  assert.doesNotMatch(home, /className="hero"/);
+  assert.doesNotMatch(home, /Watch what AI can imagine/);
   assert.match(home, /Trending/);
   assert.match(home, /Latest/);
-  assert.match(home, /likes, comments, and follows/i);
+  assert.match(home, /<VideoCard/);
   assert.match(home, /Star Pumblo on GitHub/);
   assert.doesNotMatch(home, /Give the clip a home/);
 });
