@@ -7,6 +7,7 @@ import { Avatar } from "@/app/components/Avatar";
 import { FollowButton } from "@/app/components/FollowButton";
 import { VideoCard } from "@/app/components/VideoCard";
 import { StoryTier } from "@/app/components/StoryTier";
+import { SocialLinks } from "@/app/components/SocialLinks";
 import { profileMediaUrl } from "@/app/lib/profile-media";
 import {
   getFollowState,
@@ -137,15 +138,7 @@ export default async function ProfilePage({
               </a>
             ) : null}
           </div>
-          {settings.showSocials ? (
-            <div className="profile-socials" aria-label="Creator links">
-              {profile.chatgptUrl ? <a href={profile.chatgptUrl} rel="nofollow ugc noreferrer" target="_blank">ChatGPT ↗</a> : null}
-              {profile.discordUrl ? <a href={profile.discordUrl} rel="nofollow ugc noreferrer" target="_blank">Discord ↗</a> : null}
-              {profile.xUrl ? <a href={profile.xUrl} rel="nofollow ugc noreferrer" target="_blank">X ↗</a> : null}
-              {profile.githubUrl ? <a href={profile.githubUrl} rel="nofollow ugc noreferrer" target="_blank">GitHub ↗</a> : null}
-              {profile.youtubeUrl ? <a href={profile.youtubeUrl} rel="nofollow ugc noreferrer" target="_blank">YouTube ↗</a> : null}
-            </div>
-          ) : null}
+          <SocialLinks profile={profile} settings={settings} />
         </div>
       </section>
 
@@ -179,7 +172,14 @@ export default async function ProfilePage({
         {videos.length ? (
           <div className="video-grid">
             {videos.map((video) => (
-              <VideoCard key={video.id} video={video} />
+              <div className="owner-video-wrap" key={video.id}>
+                <VideoCard video={video} />
+                {isOwner ? (
+                  <Link className="owner-video-edit" href={`/studio/videos/${video.id}`}>
+                    Edit video
+                  </Link>
+                ) : null}
+              </div>
             ))}
           </div>
         ) : (

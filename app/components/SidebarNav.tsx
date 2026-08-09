@@ -10,6 +10,7 @@ const discover: NavItem[] = [
   { href: "/", label: "Home", exact: true },
   { href: "/quicks", label: "Quicks" },
   { href: "/following", label: "Following" },
+  { href: "/ranks", label: "Creator ranks" },
 ];
 
 export function SidebarNav({

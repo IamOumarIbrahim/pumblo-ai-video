@@ -9,6 +9,10 @@ This is the lightweight, public to-do list for useful creator and viewer feedbac
 - [x] Simplify navigation by removing decorative glyph icons.
 - [x] Improve profile and Story Tier spacing and readability.
 - [x] Increase the default interface scale to 110%.
+- [x] Add a still-preview batch importer for original files with an 80 MB capacity bar, sequential progress, and post-import editing.
+- [x] Add three-level comment threads with like/dislike counts and creator-rank badges.
+- [x] Replace Story Tier with exactly three transparent ranks: Rising, Active, and Storyteller.
+- [x] Add per-social visibility controls and video-page link placement.
 
 ## Next candidates
 
@@ -17,6 +21,8 @@ This is the lightweight, public to-do list for useful creator and viewer feedbac
 - [ ] Add accessible transcript and caption uploads.
 - [ ] Add optional per-video content notes for flashing imagery and sensitive themes.
 - [ ] Add a compact roadmap link in the product once the feedback intake process is ready.
+- [ ] Evaluate Google/YouTube account linking for metadata only when provider credentials and consent review are available; audiovisual downloads remain out of scope without written platform approval.
+- [ ] Re-evaluate X account import only if timeline reads can meet the zero-spend launch constraint.
 
 ## How items move
 

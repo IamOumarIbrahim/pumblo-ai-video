@@ -4,6 +4,7 @@ import {
   getProfileByEmail,
   getProfileSettings,
   saveProfileSettings,
+  type ProfileSettings,
 } from "@/db";
 
 export async function GET() {
@@ -19,10 +20,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Create a profile first." }, { status: 403 });
   }
   const body = (await request.json()) as Record<string, unknown>;
-  const settings = Object.fromEntries(
-    Object.keys(DEFAULT_PROFILE_SETTINGS)
-      .filter((key) => key !== "updatedAt")
-      .map((key) => [key, body[key] === true]),
-  ) as Omit<typeof DEFAULT_PROFILE_SETTINGS, "updatedAt">;
+  type BooleanKey = Exclude<keyof ProfileSettings, "updatedAt" | "socialPlacement">;
+  const booleanKeys = Object.keys(DEFAULT_PROFILE_SETTINGS).filter(
+    (key): key is BooleanKey => key !== "updatedAt" && key !== "socialPlacement",
+  );
+  const settings = {
+    ...Object.fromEntries(booleanKeys.map((key) => [key, body[key] === true])),
+    socialPlacement:
+      body.socialPlacement === "under-description"
+        ? "under-description"
+        : "under-title",
+  } as Omit<ProfileSettings, "updatedAt">;
   return Response.json({ settings: await saveProfileSettings(user.email, settings) });
 }

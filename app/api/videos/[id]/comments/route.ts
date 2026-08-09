@@ -11,10 +11,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const viewer = await getChatGPTUser();
   if (!(await getVideo(id))) {
     return Response.json({ error: "Video not found." }, { status: 404 });
   }
-  return Response.json({ comments: await listComments(id) });
+  return Response.json({ comments: await listComments(id, viewer?.email) });
 }
 
 export async function POST(

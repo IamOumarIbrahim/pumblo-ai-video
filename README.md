@@ -40,7 +40,7 @@ Pumblo turns scattered renders into channels, series, and audiences by giving ev
 - [What is Pumblo?](#-what-is-pumblo)
 - [Key Features](#-key-features)
 - [Feedback Roadmap](ROADMAP.md)
-- [Story Tier](#-story-tier)
+- [Creator ranks](#creator-ranks)
 - [System Architecture](#️-system-architecture)
 - [Setup & Installation](#-setup--installation)
 - [How to Use](#️-how-to-use)
@@ -78,10 +78,10 @@ Instead of optimizing only for disconnected clips, Pumblo supports three viewing
 - ▶️ **Hover previews**: desktop video cards preview inline on pointer hover. Pumblo requests sound and falls back to muted playback with a one-click sound control when browser autoplay policy blocks it.
 -  **Quicks**: videos strictly shorter than 60 seconds enter a vertical, paginated feed with keyboard and on-screen navigation.
 - ️ **Series and episodes**: creators organize videos by season and episode; viewers get ordered series pages and optional next-episode autoplay.
--  **Story Tier**: a transparent structural grade rewards sustained, connected publishing without pretending to judge artistic quality.
+-  **Creator ranks**: Rising, Active, and Storyteller use transparent publishing-structure rules without pretending to judge artistic quality.
 -  **Continue Watching**: signed-in viewers resume from persisted playback progress.
 -  **Watch Later**: one-click private saving creates a personal library.
--  **Creator Studio**: views, likes, comments, published runtime, storage, per-video performance, series management, and tier evidence live together.
+-  **Creator Studio**: views, likes, comments, published runtime, storage, per-video performance, series management, and rank evidence live together.
 -  **Activity inbox**: configurable notifications cover likes, comments, follows, and new series episodes.
 -  **Reporting intake**: signed-in viewers can report rights, impersonation, non-consensual, hate, spam, or other concerns once per video.
 - ️ **Local storage optimizer**: optional, conservative WebM re-encoding runs in the browser and is kept only if it saves more than 8% while preserving runtime.
@@ -89,20 +89,20 @@ Instead of optimizing only for disconnected clips, Pumblo supports three viewing
 - ️ **Settings**: playback/performance, data saver, reduced motion, content preferences, notifications, public-profile privacy, and a JSON account export.
 -  **Queryable public web**: search APIs, canonical video/profile/series URLs, `VideoObject` structured data, XML sitemap, robots rules, manifest, and share metadata.
 -  **Guest-first access**: viewing requires no account. Sign in with ChatGPT appears only when someone tries to publish or interact.
--  **Threaded conversation**: viewers can reply to comments, and creators can keep community requests visible in the public [feedback roadmap](ROADMAP.md).
+-  **Threaded conversation**: three-level replies support one like/dislike vote per profile, visible counts, and creator-rank badges.
+-  **Guided batch import**: new channels can select multiple original MP4/WebM files, review still previews and titles, and stay within the 80 MB capacity bar before uploading.
 
 ---
 
-## Story Tier
+## Creator ranks
 
-Story Tier measures sustained story structurenot identity, popularity, truth, or artistic quality.
+Creator ranks measure publishing structure—not identity, popularity, truth, or artistic quality.
 
-| Tier | Server-checkable requirements |
+| Rank | Server-checkable requirements |
 | :--- | :--- |
-| Rising | The starting state |
-| C · Series creator | 1 qualifying series, 3 episodes, at least 3 minutes total |
-| B · Serial storyteller | 2 qualifying series, 6 episodes, at least 7 minutes total, at least 7 publishing days |
-| A · Established storyteller | 3 qualifying series, 9 episodes, at least 12 minutes total, at least 21 publishing days |
+| Rising | Fewer than 3 published videos |
+| Active | 3 or more published videos |
+| Storyteller | At least one qualifying series with 3 consecutive episodes of at least 60 seconds each |
 
 A qualifying series contains a season with at least three consecutive episodes, every counted episode is at least 60 seconds, and its season numbering has no gaps or duplicates. Abuse resistance is enforced through server-generated publication timestamps, server-read MP4/WebM runtimes, a unique series/season/episode index, and a per-channel duplicate-file hash. The rules and evidence are visible in Creator Studio.
 
@@ -223,7 +223,7 @@ There is no application-level signup cap. "100 creators" is a bounded storage de
 | Published video | MP4/WebM, 40 MiB maximum, six-hour maximum runtime |
 | Optimizer source | MP4/WebM, 200 MiB maximum; local, optional, real-time |
 | Quicks | Runtime greater than 0 and strictly below 60 seconds |
-| Story episode | At least 60 seconds to count toward Story Tier |
+| Story episode | At least 60 seconds to count toward Storyteller rank |
 | Profile images | JPEG/PNG/WebP crop, 3 MiB each; 512 × 512 avatar and 1600 × 480 banner |
 | Authentication | Sign in with ChatGPT for writes; guest viewing stays public |
 | Social links | Public profile URLs, not OAuth connections or endorsements |
@@ -250,7 +250,7 @@ Every market-facing change must survive one blunt question: **"Bro, who's even g
 
 Full criteria: [`docs/PRODUCT-GATES.md`](docs/PRODUCT-GATES.md). Checked claims: [`docs/FACT-CHECK.md`](docs/FACT-CHECK.md).
 
-Trending uses observable activity, not Story Tier or a hidden art score:
+Trending uses observable activity, not creator rank or a hidden art score:
 
 ```text
 trending points = 6 × likes + 4 × comments + 0.05 × min(views, 500)
@@ -264,7 +264,7 @@ trending points = 6 × likes + 4 × comments + 0.05 × min(views, 500)
 - **No server transcoding pipeline**: optimization is an optional browser-side WebM re-encode; it takes roughly the video's runtime and may keep the original when the browser cannot produce a safely smaller file.
 - **No cryptographic AI provenance**: Pumblo does not validate C2PA manifests or prove pixel origin. AI/process metadata is creator-declared.
 - **Reporting is intake, not full moderation operations**: there is no admin review console, appeals workflow, block/mute system, automated media moderation, or incident-response service yet.
-- **Story Tier is structural only**: it cannot prove narrative quality, originality, consent, or that episodes form a meaningful plot.
+- **Creator rank is structural only**: it cannot prove narrative quality, originality, consent, or that episodes form a meaningful plot.
 - **One production identity provider**: writes currently use Sign in with ChatGPT. Creator social fields are links, not linked-login providers.
 - **Early analytics**: Creator Studio reports persisted totals and per-video counts, not retention curves, demographics, or revenue.
 
@@ -305,7 +305,7 @@ pumblo/
 | Optimizer keeps the original | The browser lacks the required recorder/stream support, runtime changed, or savings were under 8% | Export a browser-ready H.264 MP4/WebM externally or publish the original if it already fits |
 | Hover preview is muted | Browser autoplay policy blocked unmuted playback | Choose **Click for sound** or disable preview sound in Settings |
 | Video is absent from Quicks | Its server-read runtime is 60 seconds or longer | Upload a version strictly shorter than 60 seconds |
-| Episode does not count toward Story Tier | It is short, duplicated, gapped, or does not complete a three-part season | Open Creator Studio for the exact evidence and next requirement |
+| Episode does not count toward Storyteller | It is short, duplicated, gapped, or does not complete a three-part season | Open Creator Studio for the exact evidence and next requirement |
 | Local state should be reset | Miniflare persists local data | Stop the server and remove only this repository's `.wrangler/` directory |
 
 ---

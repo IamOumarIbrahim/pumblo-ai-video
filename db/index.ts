@@ -42,6 +42,12 @@ export type ProfileSettings = {
   notifySeries: boolean;
   showLocation: boolean;
   showSocials: boolean;
+  showChatgpt: boolean;
+  showDiscord: boolean;
+  showX: boolean;
+  showGithub: boolean;
+  showYoutube: boolean;
+  socialPlacement: "under-title" | "under-description";
   showFollowerCounts: boolean;
   updatedAt: string;
 };
@@ -124,6 +130,10 @@ export type Comment = {
   authorDisplayName: string;
   authorAvatarColor: string;
   authorAvatarUrl: string;
+  authorRank: CreatorTier["grade"];
+  likeCount: number;
+  dislikeCount: number;
+  viewerReaction: -1 | 0 | 1;
 };
 
 function bindings(): RuntimeBindings {
@@ -180,6 +190,12 @@ async function initializeSchema(): Promise<void> {
         notify_series INTEGER NOT NULL DEFAULT 1,
         show_location INTEGER NOT NULL DEFAULT 1,
         show_socials INTEGER NOT NULL DEFAULT 1,
+        show_chatgpt INTEGER NOT NULL DEFAULT 1,
+        show_discord INTEGER NOT NULL DEFAULT 1,
+        show_x INTEGER NOT NULL DEFAULT 1,
+        show_github INTEGER NOT NULL DEFAULT 1,
+        show_youtube INTEGER NOT NULL DEFAULT 1,
+        social_placement TEXT NOT NULL DEFAULT 'under-title',
         show_follower_counts INTEGER NOT NULL DEFAULT 1,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (user_email) REFERENCES profiles(email)
@@ -298,6 +314,17 @@ async function initializeSchema(): Promise<void> {
       )
     `),
     db.prepare(`
+      CREATE TABLE IF NOT EXISTS comment_reactions (
+        comment_id TEXT NOT NULL,
+        user_email TEXT NOT NULL,
+        value INTEGER NOT NULL CHECK(value IN (-1, 1)),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (comment_id, user_email),
+        FOREIGN KEY (comment_id) REFERENCES comments(id),
+        FOREIGN KEY (user_email) REFERENCES profiles(email)
+      )
+    `),
+    db.prepare(`
       CREATE TABLE IF NOT EXISTS follows (
         creator_email TEXT NOT NULL,
         follower_email TEXT NOT NULL,
@@ -312,6 +339,7 @@ async function initializeSchema(): Promise<void> {
     db.prepare("CREATE INDEX IF NOT EXISTS series_owner_idx ON series(owner_email)"),
     db.prepare("CREATE INDEX IF NOT EXISTS likes_video_idx ON likes(video_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS comments_video_idx ON comments(video_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS comment_reactions_comment_idx ON comment_reactions(comment_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS follows_creator_idx ON follows(creator_email)"),
     db.prepare("CREATE INDEX IF NOT EXISTS follows_follower_idx ON follows(follower_email)"),
     db.prepare("CREATE INDEX IF NOT EXISTS watch_later_user_idx ON watch_later(user_email, created_at DESC)"),
@@ -344,6 +372,23 @@ async function initializeSchema(): Promise<void> {
   ] as const;
   for (const [column, statement] of profileAdditions) {
     if (!profileColumns.results.some((item) => item.name === column)) {
+      await addColumn(db, statement);
+    }
+  }
+
+  const settingsColumns = await db
+    .prepare("PRAGMA table_info(profile_settings)")
+    .all<{ name: string }>();
+  const settingsAdditions = [
+    ["show_chatgpt", "ALTER TABLE profile_settings ADD COLUMN show_chatgpt INTEGER NOT NULL DEFAULT 1"],
+    ["show_discord", "ALTER TABLE profile_settings ADD COLUMN show_discord INTEGER NOT NULL DEFAULT 1"],
+    ["show_x", "ALTER TABLE profile_settings ADD COLUMN show_x INTEGER NOT NULL DEFAULT 1"],
+    ["show_github", "ALTER TABLE profile_settings ADD COLUMN show_github INTEGER NOT NULL DEFAULT 1"],
+    ["show_youtube", "ALTER TABLE profile_settings ADD COLUMN show_youtube INTEGER NOT NULL DEFAULT 1"],
+    ["social_placement", "ALTER TABLE profile_settings ADD COLUMN social_placement TEXT NOT NULL DEFAULT 'under-title'"],
+  ] as const;
+  for (const [column, statement] of settingsAdditions) {
+    if (!settingsColumns.results.some((item) => item.name === column)) {
       await addColumn(db, statement);
     }
   }
@@ -619,6 +664,12 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettings = {
   notifySeries: true,
   showLocation: true,
   showSocials: true,
+  showChatgpt: true,
+  showDiscord: true,
+  showX: true,
+  showGithub: true,
+  showYoutube: true,
+  socialPlacement: "under-title",
   showFollowerCounts: true,
   updatedAt: "",
 };
@@ -640,6 +691,12 @@ export async function getProfileSettings(email: string): Promise<ProfileSettings
         notify_series AS notifySeries,
         show_location AS showLocation,
         show_socials AS showSocials,
+        show_chatgpt AS showChatgpt,
+        show_discord AS showDiscord,
+        show_x AS showX,
+        show_github AS showGithub,
+        show_youtube AS showYoutube,
+        social_placement AS socialPlacement,
         show_follower_counts AS showFollowerCounts,
         updated_at AS updatedAt
       FROM profile_settings WHERE user_email = ?1`,
@@ -662,8 +719,9 @@ export async function saveProfileSettings(
         user_email, autoplay_previews, preview_sound, data_saver, reduced_motion,
         autoplay_next, prefer_longform, notify_likes, notify_comments,
         notify_follows, notify_series, show_location, show_socials,
-        show_follower_counts, updated_at
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+        show_chatgpt, show_discord, show_x, show_github, show_youtube,
+        social_placement, show_follower_counts, updated_at
+      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
       ON CONFLICT(user_email) DO UPDATE SET
         autoplay_previews = excluded.autoplay_previews,
         preview_sound = excluded.preview_sound,
@@ -677,6 +735,12 @@ export async function saveProfileSettings(
         notify_series = excluded.notify_series,
         show_location = excluded.show_location,
         show_socials = excluded.show_socials,
+        show_chatgpt = excluded.show_chatgpt,
+        show_discord = excluded.show_discord,
+        show_x = excluded.show_x,
+        show_github = excluded.show_github,
+        show_youtube = excluded.show_youtube,
+        social_placement = excluded.social_placement,
         show_follower_counts = excluded.show_follower_counts,
         updated_at = excluded.updated_at`,
     )
@@ -694,6 +758,12 @@ export async function saveProfileSettings(
       flag(settings.notifySeries),
       flag(settings.showLocation),
       flag(settings.showSocials),
+      flag(settings.showChatgpt),
+      flag(settings.showDiscord),
+      flag(settings.showX),
+      flag(settings.showGithub),
+      flag(settings.showYoutube),
+      settings.socialPlacement,
       flag(settings.showFollowerCounts),
       now,
     )
@@ -804,8 +874,9 @@ export async function deleteSeries(id: string, ownerEmail: string): Promise<bool
 
 export async function getCreatorTier(ownerEmail: string): Promise<CreatorTier> {
   await ensureSchema();
-  const result = await bindings()
-    .DB.prepare(
+  const email = ownerEmail.toLowerCase();
+  const [result, count] = await Promise.all([
+    bindings().DB.prepare(
       `SELECT
         series_id AS seriesId,
         season_number AS seasonNumber,
@@ -815,15 +886,19 @@ export async function getCreatorTier(ownerEmail: string): Promise<CreatorTier> {
       FROM videos
       WHERE owner_email = ?1 AND series_id IS NOT NULL AND episode_number > 0`,
     )
-    .bind(ownerEmail.toLowerCase())
-    .all<{
+      .bind(email)
+      .all<{
       seriesId: string;
       seasonNumber: number;
       episodeNumber: number;
       durationSeconds: number;
       createdAt: string;
-    }>();
-  return creatorTier(result.results);
+      }>(),
+    bindings().DB.prepare("SELECT COUNT(*) AS count FROM videos WHERE owner_email = ?1")
+      .bind(email)
+      .first<{ count: number }>(),
+  ]);
+  return creatorTier(result.results, count?.count ?? 0);
 }
 
 function settingsFromRow(
@@ -842,6 +917,15 @@ function settingsFromRow(
     notifySeries: Boolean(row.notifySeries),
     showLocation: Boolean(row.showLocation),
     showSocials: Boolean(row.showSocials),
+    showChatgpt: Boolean(row.showChatgpt),
+    showDiscord: Boolean(row.showDiscord),
+    showX: Boolean(row.showX),
+    showGithub: Boolean(row.showGithub),
+    showYoutube: Boolean(row.showYoutube),
+    socialPlacement:
+      row.socialPlacement === "under-description"
+        ? "under-description"
+        : "under-title",
     showFollowerCounts: Boolean(row.showFollowerCounts),
     updatedAt: String(row.updatedAt),
   };
@@ -1051,6 +1135,46 @@ export async function createVideo(input: {
   return (await getVideo(input.id))!;
 }
 
+export async function updateVideoMetadata(
+  id: string,
+  ownerEmail: string,
+  input: Pick<
+    Video,
+    | "title"
+    | "description"
+    | "generationTool"
+    | "generationMode"
+    | "category"
+    | "license"
+    | "prompt"
+    | "sourceCreditUrl"
+  >,
+): Promise<Video | null> {
+  await ensureSchema();
+  const result = await bindings()
+    .DB.prepare(
+      `UPDATE videos SET
+        title = ?1, description = ?2, generation_tool = ?3,
+        generation_mode = ?4, category = ?5, license = ?6,
+        prompt = ?7, source_credit_url = ?8
+       WHERE id = ?9 AND owner_email = ?10`,
+    )
+    .bind(
+      input.title,
+      input.description,
+      input.generationTool,
+      input.generationMode,
+      input.category,
+      input.license,
+      input.prompt,
+      input.sourceCreditUrl,
+      id,
+      ownerEmail.toLowerCase(),
+    )
+    .run();
+  return result.meta.changes ? getVideo(id) : null;
+}
+
 export async function incrementViews(id: string): Promise<void> {
   await ensureSchema();
   await bindings()
@@ -1074,6 +1198,11 @@ export async function deleteVideo(
   if (!video) return null;
 
   await db.batch([
+    db
+      .prepare(
+        "DELETE FROM comment_reactions WHERE comment_id IN (SELECT id FROM comments WHERE video_id = ?1)",
+      )
+      .bind(id),
     db.prepare("DELETE FROM comments WHERE video_id = ?1").bind(id),
     db.prepare("DELETE FROM likes WHERE video_id = ?1").bind(id),
     db.prepare("DELETE FROM watch_later WHERE video_id = ?1").bind(id),
@@ -1087,13 +1216,17 @@ export async function deleteVideo(
   return video;
 }
 
-export async function listComments(videoId: string): Promise<Comment[]> {
+export async function listComments(
+  videoId: string,
+  viewerEmail?: string,
+): Promise<Comment[]> {
   await ensureSchema();
   const result = await bindings()
     .DB.prepare(
       `SELECT
         c.id,
         c.video_id AS videoId,
+        c.author_email AS authorEmail,
         c.parent_id AS parentId,
         c.content,
         c.created_at AS createdAt,
@@ -1104,16 +1237,62 @@ export async function listComments(videoId: string): Promise<Comment[]> {
           WHEN p.avatar_object_key <> ''
           THEN '/profile-media/' || p.handle || '/avatar?v=' || p.updated_at
           ELSE ''
-        END AS authorAvatarUrl
+        END AS authorAvatarUrl,
+        (SELECT COUNT(*) FROM comment_reactions cr WHERE cr.comment_id = c.id AND cr.value = 1) AS likeCount,
+        (SELECT COUNT(*) FROM comment_reactions cr WHERE cr.comment_id = c.id AND cr.value = -1) AS dislikeCount,
+        COALESCE((SELECT cr.value FROM comment_reactions cr WHERE cr.comment_id = c.id AND cr.user_email = ?2), 0) AS viewerReaction
       FROM comments c
       JOIN profiles p ON p.email = c.author_email
       WHERE c.video_id = ?1
       ORDER BY c.created_at DESC
       LIMIT 100`,
     )
-    .bind(videoId)
-    .all<Comment>();
-  return result.results;
+    .bind(videoId, viewerEmail?.toLowerCase() ?? "")
+    .all<Comment & { authorEmail: string }>();
+  const authors = [...new Set(result.results.map((comment) => comment.authorEmail))];
+  const ranks = new Map<string, CreatorTier["grade"]>();
+  if (authors.length) {
+    const placeholders = authors.map((_, index) => `?${index + 1}`).join(", ");
+    const published = await bindings()
+      .DB.prepare(
+        `SELECT owner_email AS ownerEmail, series_id AS seriesId,
+          season_number AS seasonNumber, episode_number AS episodeNumber,
+          duration_seconds AS durationSeconds, created_at AS createdAt
+         FROM videos WHERE owner_email IN (${placeholders})`,
+      )
+      .bind(...authors)
+      .all<{
+        ownerEmail: string;
+        seriesId: string | null;
+        seasonNumber: number;
+        episodeNumber: number;
+        durationSeconds: number;
+        createdAt: string;
+      }>();
+    for (const email of authors) {
+      const videos = published.results.filter((video) => video.ownerEmail === email);
+      ranks.set(
+        email,
+        creatorTier(
+          videos.filter(
+            (video): video is typeof video & { seriesId: string } =>
+              Boolean(video.seriesId) && video.episodeNumber > 0,
+          ),
+          videos.length,
+        ).grade,
+      );
+    }
+  }
+  return result.results.map(({ authorEmail, ...comment }) => ({
+    ...comment,
+    authorRank: ranks.get(authorEmail) ?? "Rising",
+    viewerReaction:
+      comment.viewerReaction === 1
+        ? 1
+        : comment.viewerReaction === -1
+          ? -1
+          : 0,
+  }));
 }
 
 export async function addComment(
@@ -1136,7 +1315,16 @@ export async function addComment(
   if (requestedParentId && !parent) {
     throw new Error("The comment you are replying to is no longer available.");
   }
-  const parentId = parent?.parentId ?? parent?.id ?? null;
+  if (parent?.parentId) {
+    const ancestor = await db
+      .prepare("SELECT parent_id AS parentId FROM comments WHERE id = ?1")
+      .bind(parent.parentId)
+      .first<{ parentId: string | null }>();
+    if (ancestor?.parentId) {
+      throw new Error("Replies can be nested up to three levels.");
+    }
+  }
+  const parentId = parent?.id ?? null;
   const id = crypto.randomUUID();
   await db
     .prepare(
@@ -1156,8 +1344,63 @@ export async function addComment(
   if (parent && parent.authorEmail !== authorEmail.toLowerCase()) {
     await queueReplyNotification(parent.authorEmail, videoId, authorEmail);
   }
-  const comments = await listComments(videoId);
+  const comments = await listComments(videoId, authorEmail);
   return comments.find((comment) => comment.id === id)!;
+}
+
+export async function toggleCommentReaction(
+  commentId: string,
+  userEmail: string,
+  value: -1 | 1,
+): Promise<{ likeCount: number; dislikeCount: number; viewerReaction: -1 | 0 | 1 }> {
+  await ensureSchema();
+  const db = bindings().DB;
+  const email = userEmail.toLowerCase();
+  const comment = await db
+    .prepare("SELECT 1 AS found FROM comments WHERE id = ?1")
+    .bind(commentId)
+    .first<{ found: number }>();
+  if (!comment) throw new Error("Comment not found.");
+  const existing = await db
+    .prepare(
+      "SELECT value FROM comment_reactions WHERE comment_id = ?1 AND user_email = ?2",
+    )
+    .bind(commentId, email)
+    .first<{ value: number }>();
+  let viewerReaction: -1 | 0 | 1 = value;
+  if (existing?.value === value) {
+    await db
+      .prepare(
+        "DELETE FROM comment_reactions WHERE comment_id = ?1 AND user_email = ?2",
+      )
+      .bind(commentId, email)
+      .run();
+    viewerReaction = 0;
+  } else {
+    await db
+      .prepare(
+        `INSERT INTO comment_reactions (comment_id, user_email, value, updated_at)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(comment_id, user_email) DO UPDATE SET
+           value = excluded.value, updated_at = excluded.updated_at`,
+      )
+      .bind(commentId, email, value, new Date().toISOString())
+      .run();
+  }
+  const counts = await db
+    .prepare(
+      `SELECT
+        SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END) AS likeCount,
+        SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END) AS dislikeCount
+       FROM comment_reactions WHERE comment_id = ?1`,
+    )
+    .bind(commentId)
+    .first<{ likeCount: number | null; dislikeCount: number | null }>();
+  return {
+    likeCount: counts?.likeCount ?? 0,
+    dislikeCount: counts?.dislikeCount ?? 0,
+    viewerReaction,
+  };
 }
 
 export async function getLikeState(
@@ -1484,7 +1727,7 @@ export async function getAccountExport(email: string) {
   await ensureSchema();
   const normalized = email.toLowerCase();
   const db = bindings().DB;
-  const [profile, settings, creatorSeries, videos, likes, comments, follows, saved, progress, notices, reports] =
+  const [profile, settings, creatorSeries, videos, likes, comments, commentReactions, follows, saved, progress, notices, reports] =
     await Promise.all([
       getProfileByEmail(normalized),
       getProfileSettings(normalized),
@@ -1492,6 +1735,7 @@ export async function getAccountExport(email: string) {
       listVideos({ ownerEmail: normalized, sort: "newest", limit: 100 }),
       db.prepare("SELECT video_id AS videoId, created_at AS createdAt FROM likes WHERE user_email = ?1").bind(normalized).all(),
       db.prepare("SELECT id, video_id AS videoId, parent_id AS parentId, content, created_at AS createdAt FROM comments WHERE author_email = ?1 ORDER BY created_at DESC").bind(normalized).all(),
+      db.prepare("SELECT comment_id AS commentId, value, updated_at AS updatedAt FROM comment_reactions WHERE user_email = ?1 ORDER BY updated_at DESC").bind(normalized).all(),
       db.prepare("SELECT p.handle AS creatorHandle, p.display_name AS creatorDisplayName, f.created_at AS createdAt FROM follows f JOIN profiles p ON p.email = f.creator_email WHERE f.follower_email = ?1").bind(normalized).all(),
       db.prepare("SELECT video_id AS videoId, created_at AS createdAt FROM watch_later WHERE user_email = ?1").bind(normalized).all(),
       db.prepare("SELECT video_id AS videoId, progress_seconds AS progressSeconds, completed, updated_at AS updatedAt FROM watch_progress WHERE user_email = ?1").bind(normalized).all(),
@@ -1511,6 +1755,7 @@ export async function getAccountExport(email: string) {
     }),
     likes: likes.results,
     comments: comments.results,
+    commentReactions: commentReactions.results,
     follows: follows.results,
     watchLater: saved.results,
     watchProgress: progress.results,

@@ -107,7 +107,9 @@ export function ProfileForm({
 
       await saveMedia("avatar", avatarAction);
       await saveMedia("banner", bannerAction);
-      window.location.assign(nextPath || `/profile/${payload.profile.handle}`);
+      window.location.assign(
+        nextPath || (initial ? `/profile/${payload.profile.handle}` : "/upload?welcome=1"),
+      );
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Profile could not be saved.");
       setSaving(false);

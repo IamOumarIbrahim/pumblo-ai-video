@@ -6,11 +6,14 @@ import { Avatar } from "@/app/components/Avatar";
 import { DeleteVideoButton } from "@/app/components/DeleteVideoButton";
 import { Engagement } from "@/app/components/Engagement";
 import { ReportButton } from "@/app/components/ReportButton";
+import { RankBadge } from "@/app/components/RankBadge";
+import { SocialLinks } from "@/app/components/SocialLinks";
 import { VideoCard } from "@/app/components/VideoCard";
 import { WatchPlayer } from "@/app/components/WatchPlayer";
 import { compactNumber, relativeTime } from "@/app/lib/format";
 import {
   getLikeState,
+  getCreatorTier,
   getProfileByEmail,
   getProfileSettings,
   getWatchLaterState,
@@ -61,9 +64,9 @@ export default async function WatchPage({
 
   const viewer = await getChatGPTUser();
   await incrementViews(id);
-  const [profile, comments, liked, saved, related, query, settings, progress, seriesEpisodes] = await Promise.all([
+  const [profile, comments, liked, saved, related, query, viewerSettings, progress, seriesEpisodes, ownerProfile, ownerSettings, ownerTier] = await Promise.all([
     viewer ? getProfileByEmail(viewer.email) : Promise.resolve(null),
-    listComments(id),
+    listComments(id, viewer?.email),
     viewer ? getLikeState(id, viewer.email) : Promise.resolve(false),
     viewer ? getWatchLaterState(id, viewer.email) : Promise.resolve(false),
     listVideos({ category: video.category, sort: "community", limit: 5 }),
@@ -71,6 +74,9 @@ export default async function WatchPage({
     viewer ? getProfileSettings(viewer.email) : Promise.resolve(null),
     viewer ? getWatchProgress(id, viewer.email) : Promise.resolve(null),
     video.seriesId ? listVideos({ seriesId: video.seriesId, limit: 100 }) : Promise.resolve([]),
+    getProfileByEmail(video.ownerEmail),
+    getProfileSettings(video.ownerEmail),
+    getCreatorTier(video.ownerEmail),
   ]);
   const relatedVideos = related.filter((item) => item.id !== id).slice(0, 4);
   const isOwner = viewer?.email === video.ownerEmail;
@@ -120,7 +126,7 @@ export default async function WatchPage({
             autoPlay={query.uploaded === "1"}
             canPersist={Boolean(profile)}
             initialProgress={progress?.progressSeconds ?? 0}
-            autoplayNext={settings?.autoplayNext ?? true}
+            autoplayNext={viewerSettings?.autoplayNext ?? true}
             nextEpisode={nextEpisode ? { id: nextEpisode.id, title: nextEpisode.title } : null}
           />
 
@@ -136,6 +142,9 @@ export default async function WatchPage({
               <span className="provenance-flag">Creator-declared AI process</span>
             </div>
             <h1>{video.title}</h1>
+            {ownerProfile && ownerSettings.socialPlacement === "under-title" ? (
+              <SocialLinks profile={ownerProfile} settings={ownerSettings} compact />
+            ) : null}
             <p className="watch-meta">
               {compactNumber(video.views + 1)} views · {relativeTime(video.createdAt)}
             </p>
@@ -153,6 +162,7 @@ export default async function WatchPage({
                 <Link href={`/profile/${video.ownerHandle}`}>
                   {video.ownerDisplayName}
                 </Link>
+                <RankBadge rank={ownerTier.grade} />
                 <p>@{video.ownerHandle}</p>
               </div>
               <Link
@@ -168,6 +178,9 @@ export default async function WatchPage({
                 <h2>About this video</h2>
                 <p>{video.description}</p>
               </div>
+            ) : null}
+            {ownerProfile && ownerSettings.socialPlacement === "under-description" ? (
+              <SocialLinks profile={ownerProfile} settings={ownerSettings} compact />
             ) : null}
 
             {video.seriesId ? (

@@ -5,6 +5,9 @@ import { useRef, useState } from "react";
 import type { Comment } from "@/db";
 import { relativeTime } from "@/app/lib/format";
 import { Avatar } from "./Avatar";
+import { RankBadge } from "./RankBadge";
+
+type CommentNode = Comment & { children: CommentNode[] };
 
 export function Engagement({
   videoId,
@@ -33,6 +36,7 @@ export function Engagement({
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reactingId, setReactingId] = useState("");
   const [shareLabel, setShareLabel] = useState("Share");
   const commentInput = useRef<HTMLTextAreaElement>(null);
 
@@ -49,9 +53,7 @@ export function Engagement({
     }
     setBusy(true);
     setError("");
-    const response = await fetch(`/api/videos/${videoId}/like`, {
-      method: "POST",
-    });
+    const response = await fetch(`/api/videos/${videoId}/like`, { method: "POST" });
     const payload = (await response.json()) as {
       liked?: boolean;
       count?: number;
@@ -81,9 +83,7 @@ export function Engagement({
         setShareLabel("Link copied");
       }
     } catch (shareError) {
-      if (shareError instanceof DOMException && shareError.name === "AbortError") {
-        return;
-      }
+      if (shareError instanceof DOMException && shareError.name === "AbortError") return;
       setShareLabel("Copy failed");
     }
   }
@@ -106,7 +106,6 @@ export function Engagement({
       return;
     }
     if (!content.trim()) return;
-
     setBusy(true);
     setError("");
     const response = await fetch(`/api/videos/${videoId}/comments`, {
@@ -114,10 +113,7 @@ export function Engagement({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ content, parentId: replyTo?.id ?? null }),
     });
-    const payload = (await response.json()) as {
-      comment?: Comment;
-      error?: string;
-    };
+    const payload = (await response.json()) as { comment?: Comment; error?: string };
     if (!response.ok || !payload.comment) {
       setError(payload.error ?? "Comment could not be posted.");
     } else {
@@ -133,14 +129,53 @@ export function Engagement({
       window.location.href = actionPath;
       return;
     }
-    setReplyTo({
-      id: comment.id,
-      name: comment.authorDisplayName,
-    });
+    setReplyTo({ id: comment.id, name: comment.authorDisplayName });
     window.setTimeout(() => commentInput.current?.focus(), 0);
   }
 
-  const rootComments = comments.filter((comment) => !comment.parentId);
+  async function reactToComment(comment: Comment, value: -1 | 1) {
+    if (actionPath) {
+      window.location.href = actionPath;
+      return;
+    }
+    setReactingId(comment.id);
+    setError("");
+    const response = await fetch(`/api/comments/${comment.id}/reaction`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ value }),
+    });
+    const payload = (await response.json()) as {
+      likeCount?: number;
+      dislikeCount?: number;
+      viewerReaction?: -1 | 0 | 1;
+      error?: string;
+    };
+    if (
+      !response.ok ||
+      typeof payload.likeCount !== "number" ||
+      typeof payload.dislikeCount !== "number" ||
+      typeof payload.viewerReaction !== "number"
+    ) {
+      setError(payload.error ?? "Reaction could not be saved.");
+    } else {
+      setComments((current) =>
+        current.map((item) =>
+          item.id === comment.id
+            ? {
+                ...item,
+                likeCount: payload.likeCount!,
+                dislikeCount: payload.dislikeCount!,
+                viewerReaction: payload.viewerReaction!,
+              }
+            : item,
+        ),
+      );
+    }
+    setReactingId("");
+  }
+
+  const threads = buildCommentTree(comments);
 
   return (
     <section className="engagement">
@@ -152,17 +187,17 @@ export function Engagement({
           aria-pressed={liked}
           onClick={toggleLike}
         >
-          <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
           {liked ? "Liked" : "Like"} · {likeCount}
         </button>
-        <a className="share-button" href="#comments">
-          Comment · {comments.length}
-        </a>
-        <button className="share-button" type="button" onClick={shareVideo}>
-          {shareLabel}
-        </button>
-        <button className="share-button" type="button" aria-pressed={saved} onClick={() => void toggleSaved()}>
-          {saved ? "Saved ✓" : "Watch later"}
+        <a className="share-button" href="#comments">Comment · {comments.length}</a>
+        <button className="share-button" type="button" onClick={shareVideo}>{shareLabel}</button>
+        <button
+          className="share-button"
+          type="button"
+          aria-pressed={saved}
+          onClick={() => void toggleSaved()}
+        >
+          {saved ? "Saved" : "Watch later"}
         </button>
       </div>
 
@@ -185,11 +220,7 @@ export function Engagement({
             onChange={(event) => setContent(event.target.value)}
             maxLength={500}
             rows={3}
-            placeholder={
-              signedIn
-                ? "Add something thoughtful…"
-                : "Sign in to join the conversation"
-            }
+            placeholder={signedIn ? "Add something thoughtful…" : "Sign in to join the conversation"}
             aria-label="Write a comment"
           />
           <div>
@@ -211,33 +242,19 @@ export function Engagement({
         {error ? <p className="form-error">{error}</p> : null}
 
         <div className="comment-list">
-          {rootComments.length ? (
-            rootComments.map((comment) => {
-              const replies = comments
-                .filter((item) => item.parentId === comment.id)
-                .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-              return (
-                <div className="comment-thread" key={comment.id}>
-                  <CommentItem comment={comment} onReply={beginReply} />
-                  {replies.length ? (
-                    <div className="comment-replies" aria-label={`Replies to ${comment.authorDisplayName}`}>
-                      {replies.map((reply) => (
-                        <CommentItem
-                          comment={reply}
-                          key={reply.id}
-                          onReply={beginReply}
-                          reply
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })
+          {threads.length ? (
+            threads.map((comment) => (
+              <CommentThread
+                comment={comment}
+                depth={0}
+                key={comment.id}
+                onReply={beginReply}
+                onReact={reactToComment}
+                reactingId={reactingId}
+              />
+            ))
           ) : (
-            <p className="no-comments">
-              No comments yet. Start with what stayed with you.
-            </p>
+            <p className="no-comments">No comments yet. Start with what stayed with you.</p>
           )}
         </div>
       </div>
@@ -245,38 +262,97 @@ export function Engagement({
   );
 }
 
-function CommentItem({
+function CommentThread({
   comment,
+  depth,
   onReply,
-  reply = false,
+  onReact,
+  reactingId,
 }: {
-  comment: Comment;
+  comment: CommentNode;
+  depth: number;
   onReply: (comment: Comment) => void;
-  reply?: boolean;
+  onReact: (comment: Comment, value: -1 | 1) => Promise<void>;
+  reactingId: string;
 }) {
   return (
-    <article className={reply ? "comment is-reply" : "comment"}>
-      <Link href={`/profile/${comment.authorHandle}`}>
-        <Avatar
-          name={comment.authorDisplayName}
-          color={comment.authorAvatarColor}
-          src={comment.authorAvatarUrl || undefined}
-          size="md"
-        />
-      </Link>
-      <div>
-        <p className="comment-byline">
-          <Link href={`/profile/${comment.authorHandle}`}>
-            {comment.authorDisplayName}
-          </Link>
-          <span>@{comment.authorHandle}</span>
-          <span>{relativeTime(comment.createdAt)}</span>
-        </p>
-        <p className="comment-content">{comment.content}</p>
-        <button className="comment-reply-button" type="button" onClick={() => onReply(comment)}>
-          Reply
-        </button>
-      </div>
-    </article>
+    <div className={`comment-thread depth-${depth}`}>
+      <article className="comment">
+        <Link href={`/profile/${comment.authorHandle}`}>
+          <Avatar
+            name={comment.authorDisplayName}
+            color={comment.authorAvatarColor}
+            src={comment.authorAvatarUrl || undefined}
+            size="md"
+          />
+        </Link>
+        <div>
+          <p className="comment-byline">
+            <Link href={`/profile/${comment.authorHandle}`}>{comment.authorDisplayName}</Link>
+            <RankBadge rank={comment.authorRank} />
+            <span>@{comment.authorHandle}</span>
+            <span>{relativeTime(comment.createdAt)}</span>
+          </p>
+          <p className="comment-content">{comment.content}</p>
+          <div className="comment-actions">
+            <button
+              className={comment.viewerReaction === 1 ? "active" : ""}
+              type="button"
+              aria-pressed={comment.viewerReaction === 1}
+              disabled={reactingId === comment.id}
+              onClick={() => void onReact(comment, 1)}
+            >
+              Like {comment.likeCount}
+            </button>
+            <button
+              className={comment.viewerReaction === -1 ? "active" : ""}
+              type="button"
+              aria-pressed={comment.viewerReaction === -1}
+              disabled={reactingId === comment.id}
+              onClick={() => void onReact(comment, -1)}
+            >
+              Dislike {comment.dislikeCount}
+            </button>
+            {depth < 2 ? (
+              <button type="button" onClick={() => onReply(comment)}>Reply</button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+      {comment.children.length ? (
+        <div className="comment-replies" aria-label={`Replies to ${comment.authorDisplayName}`}>
+          {comment.children.map((child) => (
+            <CommentThread
+              comment={child}
+              depth={depth + 1}
+              key={child.id}
+              onReply={onReply}
+              onReact={onReact}
+              reactingId={reactingId}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
+}
+
+function buildCommentTree(comments: Comment[]): CommentNode[] {
+  const nodes = new Map(
+    comments.map((comment) => [comment.id, { ...comment, children: [] as CommentNode[] }]),
+  );
+  const roots: CommentNode[] = [];
+  for (const comment of comments) {
+    const node = nodes.get(comment.id)!;
+    const parent = comment.parentId ? nodes.get(comment.parentId) : null;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  const sortChildren = (node: CommentNode) => {
+    node.children.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    node.children.forEach(sortChildren);
+  };
+  roots.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  roots.forEach(sortChildren);
+  return roots;
 }

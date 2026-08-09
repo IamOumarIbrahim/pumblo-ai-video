@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ProfileSettings } from "@/db";
 
-type SettingKey = Exclude<keyof ProfileSettings, "updatedAt">;
+type SettingKey = Exclude<keyof ProfileSettings, "updatedAt" | "socialPlacement">;
 
 const groups: Array<{
   title: string;
@@ -43,7 +43,12 @@ const groups: Array<{
     description: "Your email and private viewing activity are never public.",
     settings: [
       { key: "showLocation", label: "Show location", detail: "Display the location entered on your public creator profile." },
-      { key: "showSocials", label: "Show creator links", detail: "Display your ChatGPT, Discord, X, GitHub, and YouTube links." },
+      { key: "showSocials", label: "Show creator links", detail: "Master switch for all public creator links." },
+      { key: "showChatgpt", label: "Show ChatGPT", detail: "Display your ChatGPT or public GPT link." },
+      { key: "showDiscord", label: "Show Discord", detail: "Display your Discord invite or profile link." },
+      { key: "showX", label: "Show X", detail: "Display your public X profile link." },
+      { key: "showGithub", label: "Show GitHub", detail: "Display your public GitHub profile link." },
+      { key: "showYoutube", label: "Show YouTube", detail: "Display your public YouTube channel link." },
       { key: "showFollowerCounts", label: "Show follower counts", detail: "Display follower and following totals on your profile." },
     ],
   },
@@ -99,6 +104,31 @@ export function SettingsForm({ initial }: { initial: ProfileSettings }) {
           ))}
         </fieldset>
       ))}
+      <fieldset className="settings-group">
+        <legend>Video-page creator links</legend>
+        <p>Choose where your visible links appear when someone opens your video.</p>
+        <label className="setting-select-row">
+          <span>
+            <strong>Link placement</strong>
+            <small>Place compact buttons directly below the title or after the description.</small>
+          </span>
+          <select
+            value={settings.socialPlacement}
+            onChange={(event) =>
+              setSettings((current) => ({
+                ...current,
+                socialPlacement:
+                  event.target.value === "under-description"
+                    ? "under-description"
+                    : "under-title",
+              }))
+            }
+          >
+            <option value="under-title">Under video title</option>
+            <option value="under-description">After description</option>
+          </select>
+        </label>
+      </fieldset>
       <div className="settings-actions">
         <button className="button button-primary" disabled={saving}>
           {saving ? "Saving…" : "Save settings"}

@@ -252,7 +252,7 @@ export function UploadForm({
           Use a browser-ready H.264 MP4 or WebM, keep it below 40 MB, and make
           sure you have the right to share every element.
           Videos under 60 seconds also appear in Quicks automatically. Numbered
-          series episodes at least 60 seconds can qualify toward Story Tier.
+          three consecutive series episodes of at least 60 seconds can earn Storyteller rank.
         </p>
       </div>
 
@@ -274,7 +274,7 @@ export function UploadForm({
             <option value="">Standalone video</option>
             {series.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
           </select>
-          <small>{series.length ? "Numbered episodes appear together; episodes 60 seconds or longer can count toward Story Tier." : "Create a series in Studio before assigning an episode."}</small>
+          <small>{series.length ? "Numbered episodes appear together; three consecutive episodes of at least 60 seconds can earn Storyteller rank." : "Create a series in Studio before assigning an episode."}</small>
         </label>
         {seriesId ? (
           <div className="episode-number-fields">

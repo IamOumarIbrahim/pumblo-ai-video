@@ -162,12 +162,13 @@ test("video cards provide inline pointer previews with an audible user fallback"
   assert.doesNotMatch(card, /requestFullscreen/);
 });
 
-test("Story Tier is structural, server-runtime-verified, and resistant to easy numbering abuse", async () => {
+test("creator ranks are structural, server-runtime-verified, and resistant to easy numbering abuse", async () => {
   const tier = await text("app/lib/creator-tier.ts");
   const upload = await text("app/api/videos/route.ts");
   const schema = await text("db/schema.ts");
-  assert.match(tier, /durationSeconds < 60/);
+  assert.match(tier, /minimumEpisodeSeconds: 60/);
   assert.match(tier, /publishingSpanDays/);
+  assert.match(tier, /"Rising" \| "Active" \| "Storyteller"/);
   assert.match(upload, /readContainerDuration/);
   assert.match(upload, /durationsAgree/);
   assert.match(schema, /videos_series_episode_unique/);
@@ -245,7 +246,7 @@ test("profile and upload setup remove avoidable friction", async () => {
   assert.doesNotMatch(upload, /<select name="generationTool"/);
 });
 
-test("comments support one-level reply threads", async () => {
+test("comments support three-level threads with ranked like and dislike reactions", async () => {
   const schema = await text("db/schema.ts");
   const database = await text("db/index.ts");
   const engagement = await text("app/components/Engagement.tsx");
@@ -253,9 +254,24 @@ test("comments support one-level reply threads", async () => {
   assert.match(schema, /parentId: text\("parent_id"\)/);
   assert.match(database, /comments_parent_idx/);
   assert.match(database, /queueReplyNotification/);
+  assert.match(database, /toggleCommentReaction/);
+  assert.match(schema, /commentReactions/);
   assert.match(engagement, /comment-replies/);
-  assert.match(engagement, /comment-reply-button[\s\S]*Reply/);
+  assert.match(engagement, /depth < 2/);
+  assert.match(engagement, /Dislike \{comment\.dislikeCount\}/);
+  assert.match(engagement, /RankBadge/);
   assert.match(route, /parentId/);
+});
+
+test("new channels receive a still-preview batch importer with an 80 MB capacity bar", async () => {
+  const profile = await text("app/components/ProfileForm.tsx");
+  const importer = await text("app/components/BatchImportModal.tsx");
+  assert.match(profile, /\/upload\?welcome=1/);
+  assert.match(importer, /canvas\.toDataURL/);
+  assert.match(importer, /Projected channel storage/);
+  assert.match(importer, /MAX_PROFILE_VIDEO_BYTES/);
+  assert.match(importer, /Edit videos/);
+  assert.doesNotMatch(importer, /yt-dlp|youtube\.com\/watch/);
 });
 
 test("navigation is text-only and the default type scale is 110 percent", async () => {

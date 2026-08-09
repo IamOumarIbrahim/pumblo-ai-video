@@ -50,6 +50,13 @@
       "when": 1786265286888,
       "tag": "0006_fluffy_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1786267038714,
+      "tag": "0007_thick_old_lace",
+      "breakpoints": true
     }
   ]
 }

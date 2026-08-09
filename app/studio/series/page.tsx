@@ -14,7 +14,7 @@ export default async function SeriesStudioPage() {
       <div className="form-page-heading">
         <span className="section-kicker">Series studio</span>
         <h1>Build stories people return to.</h1>
-        <p>Group numbered episodes, show the intended order, and earn a transparent structural Story Tier.</p>
+        <p>Group numbered episodes, show the intended order, and earn the transparent Storyteller rank.</p>
       </div>
       <SeriesManager initialSeries={series} />
     </main>

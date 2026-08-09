@@ -48,6 +48,12 @@ export const profileSettings = sqliteTable("profile_settings", {
   notifySeries: integer("notify_series").notNull().default(1),
   showLocation: integer("show_location").notNull().default(1),
   showSocials: integer("show_socials").notNull().default(1),
+  showChatgpt: integer("show_chatgpt").notNull().default(1),
+  showDiscord: integer("show_discord").notNull().default(1),
+  showX: integer("show_x").notNull().default(1),
+  showGithub: integer("show_github").notNull().default(1),
+  showYoutube: integer("show_youtube").notNull().default(1),
+  socialPlacement: text("social_placement").notNull().default("under-title"),
   showFollowerCounts: integer("show_follower_counts").notNull().default(1),
   updatedAt: text("updated_at").notNull(),
 });
@@ -228,6 +234,24 @@ export const comments = sqliteTable(
   (table) => [
     index("comments_video_idx").on(table.videoId, table.createdAt),
     index("comments_parent_idx").on(table.parentId, table.createdAt),
+  ],
+);
+
+export const commentReactions = sqliteTable(
+  "comment_reactions",
+  {
+    commentId: text("comment_id")
+      .notNull()
+      .references(() => comments.id),
+    userEmail: text("user_email")
+      .notNull()
+      .references(() => profiles.email),
+    value: integer("value").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.commentId, table.userEmail] }),
+    index("comment_reactions_comment_idx").on(table.commentId),
   ],
 );
 

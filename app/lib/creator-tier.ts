@@ -7,8 +7,9 @@ export type TierEpisode = {
 };
 
 export type CreatorTier = {
-  grade: "A" | "B" | "C" | "Rising";
+  grade: "Rising" | "Active" | "Storyteller";
   label: string;
+  publishedVideos: number;
   qualifyingSeries: number;
   qualifyingEpisodes: number;
   totalRuntimeSeconds: number;
@@ -16,13 +17,15 @@ export type CreatorTier = {
   nextRequirement: string;
 };
 
-export const TIER_RULES = {
-  C: { series: 1, episodes: 3, runtimeSeconds: 180, spanDays: 0 },
-  B: { series: 2, episodes: 6, runtimeSeconds: 420, spanDays: 7 },
-  A: { series: 3, episodes: 9, runtimeSeconds: 720, spanDays: 21 },
+export const RANK_RULES = {
+  active: { publishedVideos: 3 },
+  storyteller: { consecutiveEpisodes: 3, minimumEpisodeSeconds: 60 },
 } as const;
 
-export function creatorTier(episodes: TierEpisode[]): CreatorTier {
+export function creatorTier(
+  episodes: TierEpisode[],
+  publishedVideos = episodes.length,
+): CreatorTier {
   const bySeries = new Map<string, TierEpisode[]>();
   for (const episode of episodes) {
     if (!episode.seriesId) continue;
@@ -44,41 +47,45 @@ export function creatorTier(episodes: TierEpisode[]): CreatorTier {
     ? Math.floor((Math.max(...dates) - Math.min(...dates)) / 86_400_000)
     : 0;
   const metrics = {
+    publishedVideos: Math.max(0, publishedVideos),
     series: qualifying.length,
     episodes: qualifyingEpisodes.length,
     runtimeSeconds: totalRuntimeSeconds,
     spanDays: publishingSpanDays,
   };
 
-  if (passes(metrics, TIER_RULES.A)) {
-    return result("A", "Established storyteller", metrics, "Top structural tier earned.");
-  }
-  if (passes(metrics, TIER_RULES.B)) {
+  if (metrics.series >= 1) {
     return result(
-      "B",
-      "Serial storyteller",
+      "Storyteller",
       metrics,
-      "Reach 3 qualifying series, 9 episodes, 12 minutes, and a 21-day publishing span.",
+      "Top rank earned through a complete, consecutive series.",
     );
   }
-  if (passes(metrics, TIER_RULES.C)) {
+  if (metrics.publishedVideos >= RANK_RULES.active.publishedVideos) {
     return result(
-      "C",
-      "Series creator",
+      "Active",
       metrics,
-      "Reach 2 qualifying series, 6 episodes, 7 minutes, and a 7-day publishing span.",
+      "Publish 3 consecutive numbered episodes of at least 60 seconds in one series.",
     );
   }
+  const remaining = Math.max(
+    0,
+    RANK_RULES.active.publishedVideos - metrics.publishedVideos,
+  );
   return result(
     "Rising",
-    "Rising creator",
     metrics,
-    "Publish 3 consecutive episodes of at least 60 seconds in one series.",
+    `Publish ${remaining} more ${remaining === 1 ? "video" : "videos"} to reach Active.`,
   );
 }
 
 function qualifiesAsSeries(episodes: TierEpisode[]): boolean {
-  if (episodes.length < 3 || episodes.some((episode) => episode.durationSeconds < 60)) {
+  if (
+    episodes.length < RANK_RULES.storyteller.consecutiveEpisodes ||
+    episodes.some(
+      (episode) => episode.durationSeconds < RANK_RULES.storyteller.minimumEpisodeSeconds,
+    )
+  ) {
     return false;
   }
   const seasons = new Map<number, number[]>();
@@ -88,39 +95,31 @@ function qualifiesAsSeries(episodes: TierEpisode[]): boolean {
     numbers.push(Math.floor(episode.episodeNumber));
     seasons.set(season, numbers);
   }
-  const orderedSeasons = [...seasons.values()].map((numbers) => {
+  return [...seasons.values()].some((numbers) => {
     const ordered = [...new Set(numbers)].sort((a, b) => a - b);
-    return {
-      valid:
-        ordered.length === numbers.length &&
-        ordered.every((number, index) => number === index + 1),
-      count: ordered.length,
-    };
+    return (
+      ordered.length === numbers.length &&
+      ordered.length >= RANK_RULES.storyteller.consecutiveEpisodes &&
+      ordered.every((number, index) => number === index + 1)
+    );
   });
-  return orderedSeasons.every((season) => season.valid) && orderedSeasons.some((season) => season.count >= 3);
-}
-
-function passes(
-  metrics: { series: number; episodes: number; runtimeSeconds: number; spanDays: number },
-  rule: { series: number; episodes: number; runtimeSeconds: number; spanDays: number },
-): boolean {
-  return (
-    metrics.series >= rule.series &&
-    metrics.episodes >= rule.episodes &&
-    metrics.runtimeSeconds >= rule.runtimeSeconds &&
-    metrics.spanDays >= rule.spanDays
-  );
 }
 
 function result(
   grade: CreatorTier["grade"],
-  label: string,
-  metrics: { series: number; episodes: number; runtimeSeconds: number; spanDays: number },
+  metrics: {
+    publishedVideos: number;
+    series: number;
+    episodes: number;
+    runtimeSeconds: number;
+    spanDays: number;
+  },
   nextRequirement: string,
 ): CreatorTier {
   return {
     grade,
-    label,
+    label: `${grade} creator`,
+    publishedVideos: metrics.publishedVideos,
     qualifyingSeries: metrics.series,
     qualifyingEpisodes: metrics.episodes,
     totalRuntimeSeconds: metrics.runtimeSeconds,
